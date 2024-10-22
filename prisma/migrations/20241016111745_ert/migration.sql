@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "isStaff" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "isSuperUser" BOOLEAN NOT NULL DEFAULT false;

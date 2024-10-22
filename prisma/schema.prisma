@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String  @id @default(uuid())
+  email         String  @unique
+  firstname     String
+  lastname      String
+  username      String  @unique
+  password      String
+  avatarUrl     String? @default("https://mindsrcibe.s3.amazonaws.com/defaultBanner.jpg")
+  facebookLink  String?
+  instagramLink String?
+  xLink         String?
+  twitchLink    String?
+  youtubeLink   String?
+  isValid       Boolean @default(false)
+  isStaff Boolean @default(false)
+  isSuperUser Boolean @default(false)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  posts         Post[]
+  comments      Comment[]
+  likedposts    PostLike[]
+  likedcomments CommentLike[]
+  bookmarks     Bookmark[]
+  followers     Follower[]    @relation("follower")
+  following     Follower[]    @relation("following")
+  Series        Series[]
+  // sentMessages     Message[]     @relation("sender")
+  // receivedMessages Message[]     @relation("receiver")
+}
+
+model Post {
+  id         String     @id @default(uuid())
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   String
+  bannerUrl  String     @default("https://mindsrcibe.s3.amazonaws.com/defaultBanner.jpg")
+  title      String
+  content    String
+  published  Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  readTime   Int?       @default(2)
+  comments   Comment[]
+  likes      PostLike[]
+  bookmarks  Bookmark[]
+  series     Series?    @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  seriesId   String?
+  @@index([authorId])
+}
+
+model Comment {
+  id             String        @id @default(uuid())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  post           Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId         String
+  comment        String
+  parent         Comment?      @relation("commentreply", fields: [parentId], references: [id])
+  parentId       String?
+  commentReplies Comment[]     @relation("commentreply")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  likes          CommentLike[]
+
+  @@unique([userId, postId])
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, postId])
+}
+
+model CommentLike {
+  id        String  @id @default(uuid())
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, commentId])
+}
+
+model Follower {
+  id          String @id @default(uuid())
+  user        User   @relation("following", fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  following   User   @relation("follower", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, followingId])
+}
+
+model Bookmark {
+  id     String @id @default(uuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, postId])
+}
+
+model Series {
+  id      String @id @default(uuid())
+  title   String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+  posts   Post[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([title, ownerId])
+}
+
+// model Message {
+//   id         String   @id @default(uuid())
+//   sender     User     @relation("sender", fields: [senderId], references: [id])
+//   senderId   String
+//   receiver   User     @relation("receiver", fields: [receiverId], references: [id])
+//   receiverId String
+//   body       String
+//   createdAt  DateTime @default(now())
+//   updatedAt  DateTime @updatedAt
+// }
