@@ -280,8 +280,10 @@ export class PostController {
     @Query('q') searchQuery: string,
   ): Promise<PaginatedPostResponse> {
     // try converting page and limit values to numbers
+    console.log(`${page} ${limit}`);
     if (page) page = Number(page);
     if (limit) limit = Number(limit);
+    
     if (Number.isNaN(page))
       throw new BadRequestException('page should be a number');
     if (Number.isNaN(limit))

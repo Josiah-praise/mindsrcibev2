@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  mindscribe:
+    build:
+      context: .
+      dockerfile: prod.Dockerfile
+    image: mindscribe:prod
+    container_name: mindscribe
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
