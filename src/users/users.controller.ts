@@ -9,10 +9,8 @@ import {
   Body,
   Delete,
   ParseUUIDPipe,
-  NotFoundException,
   HttpCode,
   HttpStatus,
-  BadRequestException,
   Query,
   Patch,
   UseInterceptors,
@@ -20,6 +18,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtGuard } from 'src/auth/jwt.guard';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -48,6 +47,7 @@ import {
 } from 'src/users/dto/userResponse.dto';
 import { UsersService } from './users.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { PaginationDTO } from 'src/post/post.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -99,17 +99,7 @@ export class UsersController {
     // ensure the id belongs to the logged in user
     if (id !== (req.user as any).id) throw new ForbiddenException();
 
-    const updatedUser = await this.prismaService.user.update({
-      where: {
-        id,
-      },
-      data: {
-        ...updateUserDto,
-      },
-    });
-
-    delete updatedUser.password;
-    return updatedUser;
+    return await this.userService.updateUser(id, updateUserDto);
   }
 
   @ApiInternalServerErrorResponse(
@@ -130,16 +120,8 @@ export class UsersController {
     summary: 'Get User by UUID',
   })
   @Get(':id')
-  async getUserById(
-    @Param('id', ParseUUIDPipe) id,
-  ): Promise<UserResponseDto | null> {
-    const user = await this.prismaService.user.findUnique({
-      where: {
-        id,
-      },
-    });
-
-    return user && delete user.password ? user : null;
+  async getUserById(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.userService.getUserById(id);
   }
 
   @ApiQuery({
@@ -168,14 +150,11 @@ export class UsersController {
   )
   @ApiBadRequestResponse({ description: 'Bad request' })
   @Get()
-  async getUsers(@Query('page') page, @Query('limit') limit) {
-    if (page) page = Number(page);
-    if (limit) limit = Number(limit);
-    if (Number.isNaN(page))
-      throw new BadRequestException('page should be a number');
-    if (Number.isNaN(limit))
-      throw new BadRequestException('limit should be a number');
-    return await this.userService.findAll(page, limit);
+  async getUsers(@Query() paginationDTO: PaginationDTO) {
+    return await this.userService.findAll(
+      paginationDTO.page,
+      paginationDTO.limit,
+    );
   }
 
   @ApiUnauthorizedResponse(ApiResponseOptionsGenerator('Unauthorized'))
@@ -197,9 +176,13 @@ export class UsersController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtGuard)
-  @Delete()
-  async deleteUserById(@Req() req: Request) {
-    await this.deleteUserById((req.user as any).id);
+  @Delete(':userId')
+  async deleteUserById(
+    @Req() req: Request,
+    @Param('userId', ParseUUIDPipe) userId,
+  ) {
+    if (userId !== (req.user as any).id) throw new ForbiddenException();
+    await this.userService.deleteUserById((req.user as any).id);
   }
 
   @UseInterceptors(FileInterceptor('avatar'))

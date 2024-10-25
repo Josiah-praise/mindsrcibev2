@@ -4,13 +4,15 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { CreatePostDto } from './dto/create-post.dto';
-import { UpdatePostDto } from './dto/update-post.dto';
+import {
+  CreatePostResponseDto,
+  PaginatedPostResponse,
+  UpdatePostDto,
+  CreatePostDto,
+} from './post.dto';
 import { PrismaService } from 'src/services/prisma.service';
 import { UserResponseDto } from 'src/users/dto/userResponse.dto';
 import { FileUploadService } from 'src/services/fileUpload.service';
-import { CreatePostResponseDto } from './dto/postResponse.dto';
-import { PaginatedPostResponse } from './dto/paginatedPostResponse.dto';
 import { CommentResponseDto } from 'src/dtos/comments.dto';
 import { Prisma } from '@prisma/client';
 
@@ -188,18 +190,26 @@ export class PostService {
       // if no  url is sent, upload the file and get the url
       bannerUrl = await this.fileUploadService.uploadFile(file, user.id);
 
-    return await this.prismaService.post.update({
-      where: { id: postId },
-      data: {
-        ...updatePostDto,
-        bannerUrl: bannerUrl ? bannerUrl : undefined,
-      },
-    });
+    try {
+      return await this.prismaService.post.update({
+        where: { id: postId, authorId: user.id },
+        data: {
+          ...updatePostDto,
+          bannerUrl: bannerUrl ? bannerUrl : undefined,
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError)) throw error;
+      if (error.code === 'P2025')
+        throw new NotFoundException('Record not found');
+    }
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string) {
     try {
-      return await this.prismaService.post.delete({ where: { id } });
+      return await this.prismaService.post.delete({
+        where: { id, authorId: userId },
+      });
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -211,43 +221,8 @@ export class PostService {
   }
 
   async uploadFile(user: UserResponseDto, file: Express.Multer.File) {
-    return await this.fileUploadService.uploadFile(file, user.id);
+    return { url: await this.fileUploadService.uploadFile(file, user.id) };
   }
-
-  // async getUserPosts(
-  //   userId: string,
-  //   searchQuery: string,
-  //   page: number,
-  //   limit: number,
-  // ) {
-  //   if (page < 1) page = 1;
-  //   if (limit < 1) limit = 10;
-
-  //   // first get the total number of records that match that query
-  //   const total = await this.prismaService.post.count({
-  //     where: {
-  //       OR: searchQuery
-  //         ? [
-  //             { title: { contains: searchQuery, mode: 'insensitive' } },
-  //             { content: { contains: searchQuery, mode: 'insensitive' } },
-  //           ]
-  //         : undefined,
-  //       authorId: userId,
-  //     },
-  //   });
-
-  //   // calculate number of pages
-  //   const totalPages = Math.ceil(total / limit);
-
-  //   // ensure that the requested page is never above the total number of pages
-  //   page = page > totalPages ? totalPages : page;
-
-  //   // calculates the number of records to skip taking
-  //   // into account that totalPages can be 0 if no match for the query exists
-  //   const skip = page >= 1 ? (page - 1) * limit : 0;
-  // }
-
-  // private async getSkipAndLimit(where: any, )
 
   async likePost(postId: string, userId: string) {
     try {
@@ -312,7 +287,7 @@ export class PostService {
 
     return {
       count,
-      isLiked: like ? true : false,
+      isLikedByUser: like ? true : false,
     };
   }
 

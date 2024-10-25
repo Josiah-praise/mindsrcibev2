@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import {
   IsUUID,
   IsString,
@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
   IsUrl,
+  IsNumber,
 } from 'class-validator';
 
 import { Transform } from 'class-transformer';
@@ -78,4 +79,89 @@ export class CreatePostDto {
   @IsOptional()
   @IsUUID()
   seriesId?: string;
+}
+
+export class UpdatePostDto extends PartialType(CreatePostDto) {}
+export class CreatePostResponseDto extends CreatePostDto {
+  @ApiProperty()
+  id: string;
+  @ApiProperty()
+  createdAt: Date;
+  @ApiProperty()
+  updatedAt: Date;
+}
+
+class Count {
+  @ApiProperty()
+  comments: number;
+  @ApiProperty()
+  likes: number;
+}
+
+class Author {
+  @ApiProperty()
+  id: string;
+  @ApiProperty()
+  avatarUrl: string;
+  @ApiProperty()
+  username: string;
+  @ApiProperty()
+  firstname: string;
+  @ApiProperty()
+  lastname: string;
+}
+
+export class GetPostsResponseDto extends CreatePostResponseDto {
+  @ApiProperty()
+  author: Author;
+  @ApiProperty()
+  _count: Count;
+}
+
+export class PaginatedPostResponse {
+  @ApiProperty({
+    description: 'An array of posts',
+    type: GetPostsResponseDto,
+    isArray: true,
+  })
+  data: GetPostsResponseDto[];
+  @ApiProperty({
+    description: 'metadata for pagination',
+    example: {
+      total: 1000,
+      page: 10,
+      limit: 10,
+      currPageTotal: 10,
+      totalPages: 100,
+      hasNextPage: true,
+      hasPreviousPage: true,
+    },
+  })
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    currPageTotal: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export class PaginationDTO {
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => Number(value))
+  page?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => Number(value))
+  limit?: number;
+}
+
+export class PaginationWithSearchDTO extends PaginationDTO {
+  @IsString()
+  @IsOptional()
+  q?: string;
 }

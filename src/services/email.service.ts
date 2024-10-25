@@ -46,7 +46,7 @@ export class EmailService {
       if (resp.ok) {
         return await resp.json();
       } else {
-        throw new Error('Something went wrong');
+        throw new Error('Email not sent successfully');
       }
     } catch (err) {
       throw new ServiceUnavailableException({

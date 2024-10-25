@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { PrismaService } from 'src/services/prisma.service';
@@ -9,6 +10,7 @@ import { EncryptionService } from 'src/services/encryption.service';
 import { User } from 'src/entities/user';
 import { Prisma } from '@prisma/client';
 import { FileUploadService } from 'src/services/fileUpload.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -51,6 +53,45 @@ export class UsersService {
         password: hashedPassword,
       },
     });
+  }
+
+  async updateUser(userId: string, updateUserDto: UpdateUserDto) {
+    try {
+      const user = await this.prismaService.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          ...updateUserDto,
+        },
+      });
+      delete user.password;
+      return user;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      )
+        throw new NotFoundException("User record doesn't exist");
+      throw error;
+    }
+  }
+
+  async getUserById(userId) {
+    try {
+      const user = await this.prismaService.user.findUnique({
+        where: {
+          id: userId,
+        },
+      });
+      delete user.password;
+      return user;
+    } catch (error) {
+      throw new InternalServerErrorException({
+        message: error.message,
+        error: error.code,
+      });
+    }
   }
 
   async findAll(page: number = 1, limit: number = 15) {
@@ -137,21 +178,6 @@ export class UsersService {
   }
 
   async uploadAvatar(userId: string, file: Express.Multer.File) {
-    // check if the file already is in the bucket
-    const key = this.fileUploadService.generateFileName(
-      userId,
-      file.originalname,
-    );
-    const fileExists = await this.fileUploadService.fileExists(key);
-
-    let url;
-
-    if (!fileExists) {
-      url = await this.fileUploadService.uploadFile(file, userId);
-      return { url };
-    }
-
-    url = this.fileUploadService.generateFileUrl(key);
-    return { url };
+    return { url: await this.fileUploadService.uploadFile(file, userId) };
   }
 }

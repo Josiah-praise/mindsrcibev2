@@ -173,7 +173,7 @@ export class AuthController {
     const userInfo = await this.userLoginInfoService.extractLoginInfo(req);
     const formattedTemplate = await this.emailService.getFormattedTemplate(
       join(
-        this.configService.get<string>('TEMPLATE_DIR') ||
+        this.configService.get<string>('TEMPLATE_DIRS') ||
           '/home/praise-afk/Desktop/blog/templates/',
         'login.hbs',
       ),

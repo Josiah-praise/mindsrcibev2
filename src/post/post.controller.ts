@@ -13,16 +13,12 @@ import {
   Query,
   Param,
   Put,
-  BadRequestException,
   ParseUUIDPipe,
-  NotFoundException,
-  ForbiddenException,
   Delete,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { PostService } from './post.service';
-import { CreatePostDto } from './dto/create-post.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
@@ -47,9 +43,14 @@ import { JwtGuard } from 'src/auth/jwt.guard';
 import { Request } from 'express';
 import { UserResponseDto } from 'src/users/dto/userResponse.dto';
 import { ApiResponseOptionsGenerator } from 'src/utilities';
-import { CreatePostResponseDto } from './dto/postResponse.dto';
-import { PaginatedPostResponse } from './dto/paginatedPostResponse.dto';
-import { UpdatePostDto } from './dto/update-post.dto';
+import {
+  CreatePostResponseDto,
+  PaginatedPostResponse,
+  PaginationDTO,
+  PaginationWithSearchDTO,
+  UpdatePostDto,
+  CreatePostDto,
+} from './post.dto';
 import { CommentResponseDto, CreateCommentDto } from 'src/dtos/comments.dto';
 import { OptionalJwtGuard } from 'src/auth/optionaljwt.strategy';
 
@@ -181,21 +182,12 @@ export class PostController {
   @UseGuards(JwtGuard)
   async getUserPosts(
     @Req() req: Request,
-    @Query('q') searchQuery,
-    @Query('page') page,
-    @Query('limit') limit,
+    @Query() paginationWithSearchDto: PaginationWithSearchDTO,
   ) {
-    // try converting page and limit values to numbers
-    if (page) page = Number(page);
-    if (limit) limit = Number(limit);
-    if (Number.isNaN(page))
-      throw new BadRequestException('page should be a number');
-    if (Number.isNaN(limit))
-      throw new BadRequestException('limit should be a number');
     return await this.postService.findAll(
-      page,
-      limit,
-      searchQuery,
+      paginationWithSearchDto.page,
+      paginationWithSearchDto.limit,
+      paginationWithSearchDto.q,
       (req.user as any).id,
     );
   }
@@ -275,20 +267,13 @@ export class PostController {
   })
   @Get()
   async findAll(
-    @Query('page') page: number,
-    @Query('limit') limit: number,
-    @Query('q') searchQuery: string,
+    @Query() paginationWithSearchDto: PaginationWithSearchDTO,
   ): Promise<PaginatedPostResponse> {
-    // try converting page and limit values to numbers
-    console.log(`${page} ${limit}`);
-    if (page) page = Number(page);
-    if (limit) limit = Number(limit);
-    
-    if (Number.isNaN(page))
-      throw new BadRequestException('page should be a number');
-    if (Number.isNaN(limit))
-      throw new BadRequestException('limit should be a number');
-    return await this.postService.findAll(page, limit, searchQuery);
+    return await this.postService.findAll(
+      paginationWithSearchDto.page,
+      paginationWithSearchDto.limit,
+      paginationWithSearchDto.q,
+    );
   }
 
   @ApiOperation({
@@ -404,11 +389,6 @@ export class PostController {
     @Body() updatePostDto: UpdatePostDto,
     @Req() req: Request,
   ) {
-    // check if post belongs to signed in user
-    const post = await this.postService.findOne(id);
-    if (!post) throw new NotFoundException();
-    if (post.authorId !== (req.user as any).id) throw new ForbiddenException();
-
     return await this.postService.update(
       req.user as UserResponseDto,
       file,
@@ -447,11 +427,7 @@ export class PostController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async delete(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
-    // ensure the resource belongs to the signed in user
-    const post = await this.prismaService.post.findUnique({ where: { id } });
-
-    if (!post) throw new NotFoundException();
-    if (post.authorId !== (req.user as any).id) throw new ForbiddenException();
+    await this.postService.remove(id, (req.user as any).id);
   }
 
   @ApiOperation({
@@ -497,11 +473,7 @@ export class PostController {
     file: Express.Multer.File,
     @Req() req: Request,
   ): Promise<{ url: string }> {
-    const url = await this.postService.uploadFile(
-      req.user as UserResponseDto,
-      file,
-    );
-    return { url };
+    return await this.postService.uploadFile(req.user as UserResponseDto, file);
   }
 
   @ApiOperation({
@@ -638,28 +610,23 @@ export class PostController {
     @Req() req: Request,
     @Param('postId', ParseUUIDPipe) postId: string,
   ) {
-    const userId = (req.user as any).id;
     return await this.postService.updateComment(
       createCommentDto.comment,
-      userId,
+      (req.user as any).id,
       postId,
     );
   }
 
   @Get(':postId/comments')
   async getComments(
-    @Query('page') page,
-    @Query('limit') limit,
+    @Query() paginationDto: PaginationDTO,
     @Param('postId', ParseUUIDPipe) postId: string,
   ) {
-    if (page) page = Number(page);
-    if (limit) limit = Number(limit);
-    if (Number.isNaN(page))
-      throw new BadRequestException('page should be a number');
-    if (Number.isNaN(limit))
-      throw new BadRequestException('limit should be a number');
-
-    return await this.postService.getComments(postId, page, limit);
+    return await this.postService.getComments(
+      postId,
+      paginationDto.page,
+      paginationDto.limit,
+    );
   }
 
   @ApiBearerAuth()
@@ -701,4 +668,3 @@ export class PostController {
 //user/userId/bookmarks
 //implement following system later
 // implement tags and categories
-

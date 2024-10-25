@@ -12,7 +12,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       await this.$connect();
     } catch (err) {
       throw new InternalServerErrorException({
-        message: 'Error connecting to prisma',
+        message: 'Error connecting to prismaxx',
         error: err.message,
       });
     }
