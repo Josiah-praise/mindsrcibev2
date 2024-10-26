@@ -10,8 +10,8 @@ services:
       - "3003:3003"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl -f http://localhost:3003/users"]
-      interval: 1m30s
+      test: ["CMD", "wget", "--spider", "http://localhost:3003/users"]
+      interval: 10m30s
       timeout: 30s
       retries: 2
       start_period: 30s

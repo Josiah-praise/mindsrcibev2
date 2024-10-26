@@ -170,20 +170,20 @@ export class AuthController {
   async login(@Req() req: Request) {
     const user = req.user as any;
     // TODO send a login mail each time a user logs in
-    const userInfo = await this.userLoginInfoService.extractLoginInfo(req);
-    const formattedTemplate = await this.emailService.getFormattedTemplate(
-      join(
-        this.configService.get<string>('TEMPLATE_DIRS') ||
-          '/home/praise-afk/Desktop/blog/templates/',
-        'login.hbs',
-      ),
-      userInfo,
-    );
-    await this.emailService.sendMail(
-      (req.user as any).email,
-      formattedTemplate,
-      'Account Login',
-    );
+    // const userInfo = await this.userLoginInfoService.extractLoginInfo(req);
+    // const formattedTemplate = await this.emailService.getFormattedTemplate(
+    //   join(
+    //     this.configService.get<string>('TEMPLATE_DIRS') ||
+    //       '/home/praise-afk/Desktop/blog/templates/',
+    //     'login.hbs',
+    //   ),
+    //   userInfo,
+    // );
+    // await this.emailService.sendMail(
+    //   (req.user as any).email,
+    //   formattedTemplate,
+    //   'Account Login',
+    // );
 
     const payload = { id: user.id, email: user.email };
     return {

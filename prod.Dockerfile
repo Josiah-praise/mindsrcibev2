@@ -57,12 +57,15 @@ RUN chown -R nodeuser:nodejs /app
 # Use non-root user
 USER nodeuser
 
+# copy the tmplates directory
+COPY --chown=nodeuser:nodejs ./templates /templates/
+
 # Expose port
-EXPOSE 3000
+EXPOSE 3003
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --spider http://localhost:3000 || exit 1
+HEALTHCHECK --interval=10m --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --spider http://localhost:3003/users || exit 1
 
 # Start the application
 CMD ["node", "dist/main"]
